@@ -1,0 +1,12 @@
+Package: sp713
+Type: Package
+Title: Utility Functions MEES 713 Spatial Stats
+Version: 1.3
+Date: 2025-03-23
+Author: Dong Liang
+Maintainer: Dong Liang <dliang@umces.edu>
+Description: The functions are used as demonstration in the geostatistical analysis within a Generalized Linear Model lectures of MEES 713.
+License: GPL-2
+Depends: leaflet,parallel,R (>= 2.10)
+Imports: lme4,mgcv,INLA
+NeedsCompilation: no
