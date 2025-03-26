@@ -1,4 +1,4 @@
-setMethod("plot","inla", function(
+plot.inla <-  function(
   x,## a fitted inla object producedby gamm.inla()
   pages=0, ## number of pages over which to spread the output
   select=NULL, ## single term to be selected)
@@ -41,7 +41,7 @@ setMethod("plot","inla", function(
   if(pages==1){
     par(op)  
   }
-})
+}
 plot.foo.work <- function(x,y,...){
   l.oo <- order(x)
   matplot(x[l.oo],y[l.oo,],

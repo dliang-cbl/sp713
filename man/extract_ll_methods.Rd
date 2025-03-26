@@ -9,7 +9,7 @@
   Extract log likelihood for inla models from \code{inla} samples.
 }
 \usage{
-extract_log_lik(object , n=1000 , refresh=0.1 , pointwise=FALSE , ...)
+extract_log_lik(object , n=1000 , refresh=0.1 , pointwise=FALSE ,log_like = "log_lik", ...)
 \S4method{extract_log_lik}{inla}(object , n=1000 , refresh=0 , pointwise=FALSE , ...)
 }
 %- maybe also 'usage' for other objects documented here.

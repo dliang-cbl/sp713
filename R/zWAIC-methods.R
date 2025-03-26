@@ -4,7 +4,7 @@
 
 setGeneric("WAIC",
 function( object , n=1000 , refresh=0.1 , pointwise=FALSE , ... ) {
-    message( concat("No WAIC method for object of class '",class(object),"'. Returning AIC instead.") )
+    message( paste0("No WAIC method for object of class '",class(object),"'. Returning AIC instead.") )
     AIC(object)
 }
 )

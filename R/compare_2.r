@@ -43,8 +43,8 @@ compare <- function( ... , n=1e3 , sort="WAIC" , func=WAIC , WAIC=TRUE , refresh
     nobs_list <- try( sapply( L , nobs ) )
     if ( any(nobs_list != nobs_list[1]) & warn==TRUE ) {
         nobs_out <- paste( mnames , nobs_list , "\n" )
-        nobs_out <- concat(nobs_out)
-        warning(concat(
+        nobs_out <- paste0(nobs_out)
+        warning(paste0(
             "Different numbers of observations found for at least two models.\nModel comparison is valid only for models fit to exactly the same observations.\nNumber of observations for each model:\n",nobs_out))
     }
     
@@ -123,7 +123,7 @@ compare <- function( ... , n=1e3 , sort="WAIC" , func=WAIC , WAIC=TRUE , refresh
 }
 
 # plot method for compareIC results shows deviance in and expected deviance out of sample, for each model, ordered top-to-bottom by rank
-setMethod("plot" , "compareIC" , function(x,y,xlim,SE=TRUE,dSE=TRUE,weights=FALSE,...) {
+plot.compareIC <-  function(x,y,xlim,SE=TRUE,dSE=TRUE,weights=FALSE,...) {
     dev_in <- x[[1]] - x[[5]]*2 # criterion - penalty*2
     dev_out <- x[[1]]
     if ( !is.null(x[['SE']]) ) devSE <- x[['SE']]
@@ -169,7 +169,7 @@ setMethod("plot" , "compareIC" , function(x,y,xlim,SE=TRUE,dSE=TRUE,weights=FALS
             lines( c(diff_dev_lower[i],diff_dev_upper[i]) , rep(n+2-i-0.5,2) , lwd=0.5 , col=dcol )
         }
     }
-})
+}
 
 if ( FALSE ) {
 # AICc/BIC model comparison table

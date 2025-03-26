@@ -6,6 +6,7 @@
 \alias{PSIS}
 \alias{PSIS-methods}
 \alias{PSIS,list-methods}
+\alias{LOO}
 \alias{LOO-methods}
 \alias{LOO,list-methods}
 
@@ -15,7 +16,11 @@
 }
 \usage{
 WAIC( object , n=1000 , refresh=0.1 , pointwise=FALSE , ... )
+\method{WAIC}{list}( object , n=1000 , refresh=0.1 , pointwise=FALSE , ... )
 PSIS( object , n=1000 , refresh=0.1 , pointwise=FALSE , ... )
+\method{PSIS}{list}( object , n=1000 , refresh=0.1 , pointwise=FALSE , ... )
+LOO( object , n=1000 , refresh=0.1 , pointwise=FALSE , ... )
+\method{LOO}{list}( object , n=1000 , refresh=0.1 , pointwise=FALSE , ... )
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{

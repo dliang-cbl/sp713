@@ -7,7 +7,7 @@
 }
 \usage{
 compare( ... , n=1e3 , sort="WAIC" , func=WAIC , WAIC=TRUE , 
-      refresh=0 , warn=TRUE, result_orcer=c(1,5,3,6,2,4), log_lik="log_lik" )
+      refresh=0 , warn=TRUE, result_order=c(1,5,3,6,2,4), log_lik="log_lik" )
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{

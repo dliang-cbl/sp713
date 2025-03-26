@@ -3,14 +3,14 @@
 
 setGeneric("LOO",
 function( object , n=1000 , refresh=0.1 , pointwise=FALSE , ... ) {
-    message( concat("No PSIS method for object of class '",class(object),"'. Returning AIC instead.") )
+    message( paste0("No PSIS method for object of class '",class(object),"'. Returning AIC instead.") )
     AIC(object)
 }
 )
 
 setGeneric("PSIS",
 function( object , n=1000 , refresh=0.1 , pointwise=FALSE , ... ) {
-    message( concat("No PSIS method for object of class '",class(object),"'. Returning AIC instead.") )
+    message( paste0("No PSIS method for object of class '",class(object),"'. Returning AIC instead.") )
     AIC(object)
 }
 )
@@ -150,7 +150,7 @@ PSIS_list <- function( object , n=0 , refresh=0.1 , pointwise=FALSE , log_lik="l
     if ( !is.null(object[[log_lik]]) )
         ll_matrix <- object[[log_lik]]
     else
-        stop(concat("Log-likelihood matrix '",log_lik,"'' not found."))
+        stop(paste0("Log-likelihood matrix '",log_lik,"'' not found."))
 
     loo_list <- suppressWarnings( loo::loo(ll_matrix) )
 
@@ -238,9 +238,9 @@ PSISk <- function( model , ... ) {
 xcheckLOOk <- function( k_list ) {
     if ( any( k_list > 0.5 ) ) {
         if ( any( k_list > 1 ) ) {
-            message( concat("Some Pareto k values are very high (>1). Set pointwise=TRUE to inspect individual points.") )
+            message( paste0("Some Pareto k values are very high (>1). Set pointwise=TRUE to inspect individual points.") )
         } else {
-            message( concat("Some Pareto k values are high (>0.5). Set pointwise=TRUE to inspect individual points.") )
+            message( paste0("Some Pareto k values are high (>0.5). Set pointwise=TRUE to inspect individual points.") )
         }
     }
 }

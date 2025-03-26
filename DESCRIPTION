@@ -7,6 +7,6 @@ Author: Dong Liang
 Maintainer: Dong Liang <dliang@umces.edu>
 Description: The functions are used as demonstration in the geostatistical analysis within a Generalized Linear Model lectures of MEES 713.
 License: GPL-2
-Depends: leaflet,parallel,R (>= 2.10)
-Imports: lme4,mgcv,INLA
+Depends: sf,leaflet,parallel,R (>= 2.10)
+Imports: lme4,methods,mgcv,tidyr,INLA
 NeedsCompilation: no

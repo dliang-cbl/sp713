@@ -1,9 +1,10 @@
 \name{plot-methods}
+\alias{plot.inla}
 \alias{plot-methods}
 \alias{plot,inla-methods}
 \title{Default GAM plotting}
 \usage{
-\S4method{plot}{inla}(x, pages, select,...)
+\method{plot}{inla}(x, pages, select,...)
 }
 \arguments{
 \item{x}{a fitted inla and foo object produced by gamm.inla.}
