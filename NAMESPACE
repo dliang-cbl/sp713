@@ -1,9 +1,22 @@
-S3method(plot,foo)
-export(sglm)
+S3method(extract_log_lik,inla)
+S3method(link,inla)
+S3method(LOO,list)
+S3method(PSIS,list)
+S3method(plot,compareIC)
+S3method(plot,inla)
+S3method(WAIC,list)
+export(coeftab)
+export(compare)
 export(DIC)
+export(PI)
+export(sgam)
 export(visio)
-importFrom("graphics","abline","matplot","par","rug")
-importFrom("stats","gaussian","model.frame","model.matrix","model.offset","model.response","na.omit","na.pass","qqline","qqnorm","quantile","reformulate","rnorm","terms","as.formula","acf")
+importFrom("graphics","abline","matplot","par","rug","dotchart", "hist", "lines", "mtext", "points")
+importFrom("stats","binomial", "coef", "dbinom", "dnbinom", "dnorm",
+             "dpois", "dt", "glm", "poisson", "predict", "rbinom",
+             "resid", "rnbinom", "rpois", "sd", "var",
+			 "gaussian","model.frame","model.matrix","model.offset","model.response","na.omit","na.pass",
+			 "qqline","qqnorm","quantile","reformulate","rnorm","terms","as.formula","acf")
 import(leaflet)
 import(lme4)
 import(parallel)

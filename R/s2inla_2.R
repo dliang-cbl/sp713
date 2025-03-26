@@ -62,19 +62,19 @@ s2inla <- function(
   #browser()
   
   ## remove missing values
-  #data <- na.omit(data[,all.vars(formula)])
-  data <- nmiss(formula,data)
+  ## allow NA in responses for predictions
+  data <- nmiss(formula,data,forceResponse = T) 
   jf <- tempfile()
   jd <- jagam(l.formula,data=data,file=jf,
               diagonalize = TRUE,na.action=na.pass,family=family)
   
   ## creat fixed design matrix
   nms <- names(jd$pregam$cmX) ## if this name is not null, it is a design matrix
-  Design <- jd$pregam$X[,nchar(nms)>0] ## now without f terms
+  Design <- jd$pregam$X[,nchar(nms)>0,drop=F] ## now without f terms
   #browser()
   offset <- model.offset(model.frame(jd$pregam$terms,data))
   if(is.null(offset)){
-    offset <- rep(0,nrow(data))
+    offset <- rep(0,nrow(Design))
   }
   
   ## create list for random design matrix, formula and simply IDs
@@ -86,7 +86,7 @@ s2inla <- function(
   
   for(i in 1:length(jd$pregam$smooth)){ ## loop thru smooth term
     ## create id matrices
-    tmp <- matrix(1:nrow(data),nrow(data),length(jd$pregam$smooth[[i]]$rank))
+    tmp <- matrix(1:nrow(Design),nrow(Design),length(jd$pregam$smooth[[i]]$rank))
     colnames(tmp) <- paste(varnames[i],1:length(jd$pregam$smooth[[i]]$rank),sep="")
     colnames(tmp)[1] <- varnames[i]
     #colnames(tmp) <- c(varnames[i],paste(varnames[i],2:length(jd$pregam$smooth[[i]]$rank),sep=""))
@@ -131,8 +131,15 @@ s2inla <- function(
   #browser()
   ## process data for INLA
   #r.data <- cbind(data,do.call(cbind,ones))
-  r.data <- cbind(do.call(cbind,ones),data)
-  names(r.data) <- make.names(names(r.data),T)
+  if(class(data)=="data.frame"){
+    r.data <- cbind(do.call(cbind,ones),data)
+    names(r.data) <- make.names(names(r.data),T)
+  }
+  if(class(data)=="list"){
+    r.data.0 <- do.call(cbind,ones)
+    r.data <- c(as.list(r.data.0),data)
+    names(r.data) <- make.names(names(r.data),T)
+  }
   ## process formula for INLA
   
   r.formula <- reformulate(
@@ -154,8 +161,22 @@ s2inla <- function(
 }
 
 debug_ <- function(){
+  rm(list=ls())
   library(mgcv)
-  source("s2inla.R")
+  source("s2inla_2.R")
+  source("getVars.R")
+  source("nmiss_2.R")
   sim <- gamSim()
   dum <- s2inla(y~s(x1),data=sim,verbose = T)
+  sim$y[1] <- NA
+  dum <- s2inla(y~s(x1),data=sim,verbose = T)
+  sim$x1[2] <- NA
+  dum <- s2inla(y~s(x1),data=sim,verbose = T)
+  str(dum$y)
+  str(dum$Z[[1]])
+  sim2 <- list(y=sim$y,x1=sim$x1,Z=matrix(rnorm(1200),ncol=3))
+  dum <- s2inla(y~s(x1)+Z,data=sim2,verbose = T)
+  str(dum$data)
+  sim2$Z[cbind(c(2,4,7),1)] <- NA
+  dum <- s2inla(y~s(x1)+Z,data=sim2,verbose = T)
 }
