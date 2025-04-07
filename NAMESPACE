@@ -12,6 +12,8 @@ export(PI)
 export(sgam)
 export(visio)
 export(spde.glm)
+export(Variog)
+export(resid)
 importFrom("graphics","abline","matplot","par","rug","dotchart", "hist", "lines", "mtext", "points")
 importFrom("stats","binomial", "coef", "dbinom", "dnbinom", "dnorm",
              "dpois", "dt", "glm", "poisson", "predict", "rbinom",
