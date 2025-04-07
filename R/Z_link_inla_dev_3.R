@@ -31,6 +31,77 @@ inla_reset_config <- function(fit){
   }
   return(fit)
 }
+inla_spde_stack <- function(fit,data){
+  if(F){
+    fit <- mod
+    data <- wds.geo
+  }
+  fixed <- fit$.args$fixed
+  random <- fit$.args$random
+  obs <- fit$.args$raw
+  
+  ## fixed and random effects observed
+  z.obs.lst <- list(b0=rep(1,nrow(obs)))
+  
+  if(length(c(all.vars(fixed),all.vars(random)))>0){
+    z.obs.lst <- c(z.obs.lst,as.list(
+      obs[,c(all.vars(fixed),all.vars(random)),drop=FALSE]))
+  }
+  
+  ## fixed and radom effects query
+  query <- data ## must not contain missing values
+  z.query.lst <- list(b0=rep(1,nrow(query)))
+  if(length(c(all.vars(fixed),all.vars(random)))>0){
+    z.query.lst <- c(z.query.lst,as.list(
+      query[,c(all.vars(fixed),all.vars(random)),drop=FALSE]))
+  }
+  
+  ## projection matrix
+  mesh <- fit$.args$mesh
+  coords <- fit$.args$coords
+  A <- inla.spde.make.A(mesh, loc=coords)
+
+  ## Define SPDE data stacks -- observed
+  zcoord <- getVars(fit$.args$formula0)[1]
+  spde <- fit$.args$spde
+  stk.z.obs <- inla.stack(tag="obs",
+                          data=list(y=obs[,zcoord]),
+                          A=list(A,1),
+                          effects=list(
+                            list(field=1:spde$n.spde),
+                            z.obs.lst
+                          )
+  )
+  
+  pcoords <- as.matrix(query[,colnames(coords)])
+  Ap <- inla.spde.make.A(mesh, loc=pcoords)
+  stk.z.query <- inla.stack(tag="query",
+                            data=list(y=rep(NA,nrow(query))),
+                            A=list(Ap,1),
+                            effects=list(
+                              list(field=1:spde$n.spde),
+                              z.query.lst
+                            )
+  )
+  
+  stk.z <- inla.stack(stk.z.obs,stk.z.query)
+  
+  ## reset the inla compute argument for prediction
+  compute_ <- fit$.args$control.compute
+  compute_$config <- TRUE ## allow simulation
+  
+  formula_ <- reformulate(as.character(fit$.args$formula)[3],
+                         response = getVars(fit$.args$formula)[1])
+  ## prepare data structure and arguments as a list
+  internal__ <- list(
+    formula = formula_,
+    data=inla.stack.data(stk.z),
+    control.compute = compute_,
+    control.predictor=list(A=inla.stack.A(stk.z),compute=TRUE))
+  
+  ## return
+  internal__
+}
 setMethod("link","inla",function(fit,data,n=1000,type="confidence",E=NULL,Ntrials=NULL,...){
   #browser()
   stopifnot(type %in% c("confidence","prediction"))
@@ -42,96 +113,115 @@ setMethod("link","inla",function(fit,data,n=1000,type="confidence",E=NULL,Ntrial
     samples <- inla.posterior.sample(n=n,result = fit_new)
     
   }else{
-    ## extract model formula and training data
-    if(is.null(fit$.args$formula0)){
-      ## fit from standard inla
-      char_ <- as.character(fit$.args$formula)
-      for_ <- as.formula(paste0(char_[2],"~",char_[3]))
-      raw_ <- fit$.args$data
+    ## prepare model formula and training data
+    if(!is.null(fit$.args$spde)){
+      ## SPDE model
+      internal__ <- inla_spde_stack(fit,data)
+      N__ <- length(internal__$data$y)
+      #browser()
     }else{
-      ## fit from sgam
-      for_ <- fit$.args$formula0
-      raw_ <- fit$.args$raw
+      ## regular INLA model
+      ## extract model formula and training data
+      if(is.null(fit$.args$formula0)){
+        ## fit from standard inla
+        char_ <- as.character(fit$.args$formula)
+        for_ <- as.formula(paste0(char_[2],"~",char_[3]))
+        raw_ <- fit$.args$data
+      }else{
+        ## fit from sgam
+        for_ <- fit$.args$formula0
+        raw_ <- fit$.args$raw
+      }
+      ## combine new data with the existing data
+      data_ <- sgam.combine(for_,raw_,data)
+      
+      ## translate the sformula
+      tmp_ <- sgam.translate(formula = for_,
+                                   data = data_,
+                                   param = fit$.args$param)
+      
+      ## refit the model for prediction
+      compute_ <- fit$.args$control.compute
+      compute_$config <- TRUE ## allow simulation
+      predictor_ <- fit$.args$control.predictor
+      predictor_$link <- NULL
+      
+      N__ <- length(data_[[1]])
+      internal__ <- list(formula = tmp_$value$formula,
+                         data=tmp_$data,
+                         control.compute = compute_, 
+                         control.predictor = predictor_)
     }
-    ## combine new data with the existing data
-    data_ <- sgam.combine(for_,raw_,data)
-    
-    ## translate the sformula
-    internal__ <- sgam.translate(formula = for_,
-                                 data = data_,
-                                 param = fit$.args$param)
 
-    ## refit the model for prediction
-    compute_ <- fit$.args$control.compute
-    compute_$config <- TRUE ## allow simulation
-    predictor_ <- fit$.args$control.predictor
-    predictor_$link <- NULL
     
     ## set the E for Poisson
     E_ <- fit$.args$E
     if(!is.null(fit$.args$E)){
-      np <- length(data_[[1]]) - length(E_)
+      #np <- length(data_[[1]]) - length(E_)
+      np <- N__ - length(E_)
       E_ <- c(fit$.args$E,rep(1,np))
     }
     
     ## set the Ntrials for Binomial
     Ntrials_ <- fit$.args$Ntrials
     if(!is.null(fit$.args$Ntrials)){
-      np <- length(data_[[1]]) - length(Ntrials_)
+      #np <- length(data_[[1]]) - length(Ntrials_)
+      np <- N__ - length(Ntrials_)
       Ntrials_ <- c(fit$.args$Ntrials, rep(1,np))
     }
     #browser()
-    args_ <- list(formula = internal__$value$formula,
-                  data=internal__$data,
-                  family = fit$.args$family,
-                  E=E_,
-                  Ntrials=Ntrials_,
-                  control.compute = compute_, 
-                  control.predictor = predictor_, 
-                  control.family = fit$.args$control.family, 
-                  control.inla = fit$.args$control.inla, 
-                  control.fixed = fit$.args$control.fixed, 
-                  control.mode = fit$.args$control.mode, 
-                  control.expert = fit$.args$control.expert, 
-                  control.lincomb = fit$.args$control.lincomb, 
-                  control.update = fit$.args$control.update, 
-                  control.lp.scale = fit$.args$control.lp.scale, 
-                  control.pardiso = fit$.args$control.pardiso)
+    args_ <- c(internal__,list(
+      family = fit$.args$family,
+      E=E_,Ntrials=Ntrials_,
+      control.family = fit$.args$control.family,
+      control.inla = fit$.args$control.inla,
+      control.fixed = fit$.args$control.fixed,
+      control.mode = fit$.args$control.mode,
+      control.expert = fit$.args$control.expert,
+      control.lincomb = fit$.args$control.lincomb,
+      control.update = fit$.args$control.update,
+      control.lp.scale = fit$.args$control.lp.scale,
+      control.pardiso = fit$.args$control.pardiso))
+    
     if(!is.null(E_)){
       args_$E <- E_
     }
     if(!is.null(Ntrials_)){
       args_$Ntrials <- Ntrials_
     }
+    #browser()
+    
+    spde <- fit$.args$spde
+    #args_$data$spde <- fit$.args$spde
     fit_new <- do.call("inla",args = args_)
-    # fit_new <- inla(formula = internal__$value$formula,
-    #                 data=internal__$data,
-    #                 family = fit$.args$family,
-    #                 E=E_,
-    #                 Ntrials=Ntrials_,
-    #                 control.compute = compute_, 
-    #                 control.predictor = predictor_, 
-    #                 control.family = fit$.args$control.family, 
-    #                 control.inla = fit$.args$control.inla, 
-    #                 control.fixed = fit$.args$control.fixed, 
-    #                 control.mode = fit$.args$control.mode, 
-    #                 control.expert = fit$.args$control.expert, 
-    #                 control.lincomb = fit$.args$control.lincomb, 
-    #                 control.update = fit$.args$control.update, 
-    #                 control.lp.scale = fit$.args$control.lp.scale, 
-    #                 control.pardiso = fit$.args$control.pardiso)
     samples <- inla.posterior.sample(n=n,result = fit_new)
   }
   ## precision location
   prec.ii <- grep("Precision",names(samples[[1]]$hyperpar))
   name.ii <- gsub("Precision","SD",names(samples[[1]]$hyperpar))[prec.ii]
+  
   ## Predictor locations
-  pred.ii <- grep("Predictor",row.names(samples[[1]]$latent))
-  if(!missing(data)){
-    ## new data, remove training data
-    ntrain <- nrow(fit$summary.fitted.values)
-    pred.ii <- pred.ii[-c(1:ntrain)]
+  if(!is.null(fit$.args$spde)){
+    ## spde model
+    pred.ii <- grep("APredictor",row.names(samples[[1]]$latent))
+    if(!missing(data)){
+      ## CHECK ME
+      ## new data, remove training data
+      ntrain <- grep("APredictor",row.names(fit$summary.fitted.values))
+      #ntrain <- nrow(fit$summary.fitted.values)
+      pred.ii <- pred.ii[-c(1:length(ntrain))]
+    }
+    
+  }else{
+    pred.ii <- grep("Predictor",row.names(samples[[1]]$latent))
+    if(!missing(data)){
+      ## new data, remove training data
+      ntrain <- nrow(fit$summary.fitted.values)
+      pred.ii <- pred.ii[-c(1:ntrain)]
+    }
+    
   }
+  
   ## define link function
   linkinv_ <- switch(fit$.args$family,
                      poisson=poisson()$linkinv,
@@ -146,6 +236,10 @@ setMethod("link","inla",function(fit,data,n=1000,type="confidence",E=NULL,Ntrial
   
   #browser()
   fam_ <- fit$.args$family
+  if(missing(data)){
+    ## for in-sample prediction, use the training data
+    data <- fit$.args$raw
+  }
   if(type=="confidence"){
     extract <- function(elmt){
       #sigma <- sqrt(elmt$hyperpar[prec.ii][1])
@@ -244,7 +338,7 @@ dev_Gaus <- function(){
   source("proc.formula.R")
   source("lme_inla_formula.R")
   source("sgam_2.R")
-  source("Z_link_inla_2c.R")
+  source("Z_link_inla_dev_3.R")
   summary(fit)
   mu <- link(fit,data=sim[1:10,])
   post <- link(fit,data = sim[1:10,],type="prediction")
@@ -274,7 +368,7 @@ dev_Binom <- function(){
   source("proc.formula.R")
   source("lme_inla_formula.R")
   source("sgam_2.R")
-  source("Z_link_inla_2c.R") 
+  source("Z_link_inla_dev_3.R") 
   
   mu <- link(fit,data=DeerEcervi[1:10,],Ntrials = 1:10)
   post <- link(fit,data=DeerEcervi[1:10,],type = "prediction",Ntrials = 1:10)
@@ -303,7 +397,7 @@ dev_Poisson <- function(){
   source("proc.formula.R")
   source("lme_inla_formula.R")
   source("sgam_2.R")
-  source("Z_link_inla_2c.R") 
+  source("Z_link_inla_dev_3.R") 
   mu <- link(fit,data=dat,E=1:9)
   post <- link(fit,data=dat,type = "prediction",E=1:9)
   plot(apply(mu,2,mean)/1:9,fit$summary.fitted.values$mean)
@@ -337,7 +431,7 @@ dev_NB <- function(){
   source("proc.formula.R")
   source("lme_inla_formula.R")
   source("sgam_2.R")
-  source("Z_link_inla_2c.R") 
+  source("Z_link_inla_dev_3.R") 
   
   
   mu <- link(fit,data=dat[1:10,],E=1:10)
@@ -350,3 +444,34 @@ dev_NB <- function(){
   table(post[,1])  
 }
 
+dev_SPDE <- function(){
+  rm(list=ls())
+  source("sgam_2.R")
+  source("nmiss_2.R")
+  source("getVars.R")
+  source("spde_glm_1.R")
+  load(file="Scratch/spde_glm_dev1.rdata")
+  
+  wds.geo$err <- seq(1,nrow(wds.geo))
+  wds.geo$X2 <- as.vector(scale(wds.geo$X))
+  wds.geo$Y2 <- as.vector(scale(wds.geo$Y))
+  ## poly(X,2) does not work because missing values not allowed
+  dat <- wds.geo
+  fit <- spde.glm(TOT~X2+Y2+f(err),data=dat,mesh=mesh1,spde=spde1,
+                  xcoord="X",ycoord="Y",family="poisson",
+                  E=AREA)
+  source("Z_link_inla_dev_3.R")
+  mu <- link(fit,n=99,E=wds.geo$AREA)
+  #mu <- link(fit,data=dat[1:10,],E=1:10)
+  post <- link(fit,n=99,type = "prediction",
+               E=wds.geo$AREA)
+  plot(apply(mu,2,mean)/wds.geo$AREA,
+       fit$summary.fitted.values$mean[1:ncol(mu)])
+  abline(0,1)
+  plot(apply(mu,2,mean),apply(post,2,mean))
+  abline(0,1)
+  plot(apply(mu,2,sd),apply(post,2,sd))
+  abline(0,1)
+  table(post[,1])  
+  
+}

@@ -19,8 +19,13 @@ setMethod("extract_log_lik", "inla",
             }else{
               formula_ <- reformulate(vars_[-1],response = vars_[1])
             }
-            frame_ <- model.frame(formula_,object$.args$data)
-            y_ <- model.response(frame_)
+            if(!is.null(object$.args$spde)){
+              frame_ <- object$.args$data
+              y_ <- frame_[[getVars(formula_)[1]]]
+            }else{
+              frame_ <- model.frame(formula_,object$.args$data)
+              y_ <- model.response(frame_)
+            }
             
 
             ## posterior simulation
