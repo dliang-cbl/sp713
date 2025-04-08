@@ -18,6 +18,7 @@ sgam.translate <- function(formula,data,param){
   ## translate a formula into the internal objects
   l.vars <- getVars(formula)
   stopifnot(nchar(l.vars)[1]>0)
+  terms_resp <- as.character(formula)[2]
   stopifnot(all(l.vars %in% names(data)))
   r0 <- lme.inla.formula(formula=formula,data=data,param=param)
   no_fixed <- length(all.vars(r0$fixed))==1
@@ -26,11 +27,11 @@ sgam.translate <- function(formula,data,param){
     if(no_random){
       for0 <- r0$fixed
     }else{
-      for0 <- reformulate(r0$formulas,response=all.vars(formula)[1])
+      for0 <- reformulate(r0$formulas,response=terms_resp)
     }
   }
   else{
-    for0 <- reformulate(r0$formulas,response=all.vars(formula)[1])
+    for0 <- reformulate(r0$formulas,response=terms_resp)
   }
   df0 <- data
   if(!is.null(r0$index)){
