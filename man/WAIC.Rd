@@ -53,7 +53,7 @@ Gelman, A., J. Hwang, and A. Vehtari. 2013. Understanding predictive information
 
 Vehtari, A., A. Gelman, and J. Gabry. 2015. Efficient implementation of leave-one-out cross-validation and WAIC for evaluating fitted Bayesian models.
 }
-\author{Dong Liang}
+\author{Richard McElreath}
 \seealso{\code{\link{link}}}
 \examples{
 \dontrun{

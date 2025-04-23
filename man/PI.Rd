@@ -20,7 +20,7 @@ PI (samples, prob = 0.89)
 }
 \references{
 }
-\author{Dong Liang}
+\author{Richard McElreath}
 \examples{
 \dontrun{
 }

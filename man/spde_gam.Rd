@@ -32,3 +32,4 @@ This function replaces the \code{spde.glm} in earlier version of the package.
 
 The formula can not contain \code{poly}, polynomial regression must be developed by hand.
 }
+\author{Dong Liang}

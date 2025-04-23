@@ -23,3 +23,4 @@ fitted \code{inla} object
 \description{
 GAMM using R and Integrated Nested Laplace Approximation.
 }
+\author{Dong Liang}
