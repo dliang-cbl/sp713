@@ -1,13 +1,13 @@
-\name{spde.glm}
-\alias{spde.glm}
-\title{Stochastic Partial Differential Equations approach to geostatistical generalized linear model}
+\name{spde.gam}
+\alias{spde.gam}
+\title{Stochastic Partial Differential Equations approach to geostatistical generalized additive model}
 \usage{
-  spde.glm(
-    formula,data,mesh,spde,query=NULL,xcoord='x',ycoord='y',
+  spde.gam(
+    formula,data,mesh,spde,xcoord='x',ycoord='y',
     ...)
 }
 \arguments{
-\item{formula}{fixed effects type formula mostly used in \code{lm}}
+\item{formula}{fixed effects type formula mostly used in \code{gam}}
 
 \item{data}{data frame to evaluate the model}
 
@@ -19,8 +19,6 @@
 
 \item{ycoord}{field name of y coordinate}
 
-\item{query}{prediction data (optional)}
-
 
 \item{...}{arguments for the \code{inla} call}
 }
@@ -28,7 +26,9 @@
 fitted INLA object
 }
 \description{
-geostatistical GLM with Stochastic Partial Differential Equations using R and Integrated Nested Laplace Approximation.
+geostatistical GAM with Stochastic Partial Differential Equations using R and Integrated Nested Laplace Approximation.
+
+This function replaces the \code{spde.glm} in earlier version of the package.
 
 The formula can not contain \code{poly}, polynomial regression must be developed by hand.
 }

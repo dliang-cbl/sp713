@@ -4,6 +4,7 @@ plot.inla <-  function(
   select=NULL, ## single term to be selected)
   ... # arguments passed to lower level plotting function
 ){
+  #browser()
   args__ <- as.list(match.call())
   
   stopifnot(select %in% seq(1,length(x$.args$sterms)))
@@ -19,6 +20,16 @@ plot.inla <-  function(
   # }else{
   #   op <- par(mfrow=c(1,1))
   # }
+  ymin <- NA
+  ymax <- NA
+  for(i in 1:length(sterms)){
+    l.fit <- as.matrix(x$summary.random[[sterms[i]]][
+      1:nrow(x$.args$raw),
+      4:6])
+    ymin <- min(ymin,c(l.fit),na.rm=T)
+    ymax <- max(ymax,c(l.fit),na.rm=T)
+  }
+  #cat(ymin,ymax,"\n")
   for(i in 1:length(sterms)){
     l.x <- x$.args$raw[,sterms[i]]
     l.fit <- x$summary.random[[sterms[i]]][
@@ -36,7 +47,7 @@ plot.inla <-  function(
     }
     plot.foo.work(l.x,l.fit,
                   xlab=xlab,
-                  ylab=ylab,...)
+                  ylab=ylab,ylim=c(ymin,ymax),...)
   }
   if(pages==1){
     par(op)  

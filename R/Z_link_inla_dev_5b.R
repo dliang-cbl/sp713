@@ -36,54 +36,135 @@ inla_spde_stack <- function(fit,data){
     fit <- mod
     data <- wds.geo
   }
+  inla_spde_stack_helper <- function(
+    fixed,random,formula,obs,
+    mesh,spde,xcoord,ycoord,sout,offset,isquery=F){
+    ## make a INLA stack
+    
+    ## translate fixed effects (minus intercepts) and responses
+    if(isquery){
+      obs_fixed_y <- rep(NA,nrow(obs))
+    }else{
+      formula__ <- reformulate("1",response=as.character(formula)[2])
+      obs_fixed_frame <- model.frame(formula__,data=obs)
+      obs_fixed_y <- model.response(obs_fixed_frame)
+    }
+    
+    ## create objects for fixed and random effects observed
+    z.obs.lst <- list(b0=rep(1,nrow(obs)))
+    
+    if(length(all.vars(fixed))){
+      obs_fixed_X <- model.matrix(fixed,data=obs)[,-1]
+      obs_fixed_X <- as.data.frame(obs_fixed_X)
+      names(obs_fixed_X) <- make.names(names(obs_fixed_X))
+      obs_fixed_X_list <- as.list(obs_fixed_X)
+      z.obs.lst <- c(z.obs.lst,obs_fixed_X_list)
+    }
+    if(!is.null(sout)){
+      z.obs.lst <- c(z.obs.lst,sout$Z,sout$X)
+    }
+    if(length(all.vars(random))){
+      z.obs.lst <- c(z.obs.lst,as.list(
+        obs[,all.vars(random),drop=FALSE]))
+    }
+    if(length(all.vars(offset))){
+      z.obs.lst <- c(z.obs.lst,as.list(
+        obs[,all.vars(offset),drop=FALSE]
+      ))
+    }
+    
+    
+    ## Projection matrices
+    coords <- as.matrix(obs[,c(xcoord,ycoord)])
+    A <- inla.spde.make.A(mesh, loc=coords)
+    
+    ## Define SPDE data stacks
+    if(isquery){
+      tag_ <- "query"
+    }else{
+      tag_ <- "obs"
+    }
+    inla.stack(tag=tag_,
+               data=list(y=obs_fixed_y),
+               A=list(A,1),effects=list(
+                 list(field=1:spde$n.spde),
+                 z.obs.lst))
+  }
+  
+  ## adjust stack data for missing Z terms
+  inla_spde_adjustZ_helper <- function(stk.z,sout){
+    ## NA in Z terms are imputed with some positive number
+    data_ <- inla.stack.data(stk.z)
+    if(F){
+      A_ <- inla.stack.A(stk.z)
+    }
+    if(!is.null(sout)){
+      for(zterm in names(sout$Z)){
+        Z_ <- data_[[zterm]]
+        #Z_[is.na(Z_)] <- 1
+        data_[[zterm]] <- na.omit(Z_)
+      }
+    }
+    data_  
+  }
+  #browser()
+  ## extract arguments from fits
   fixed <- fit$.args$fixed
   random <- fit$.args$random
   obs <- fit$.args$raw
-  
-  ## fixed and random effects observed
-  z.obs.lst <- list(b0=rep(1,nrow(obs)))
-  
-  if(length(c(all.vars(fixed),all.vars(random)))>0){
-    z.obs.lst <- c(z.obs.lst,as.list(
-      obs[,c(all.vars(fixed),all.vars(random)),drop=FALSE]))
-  }
-  
-  ## fixed and radom effects query
-  query <- data ## must not contain missing values
-  z.query.lst <- list(b0=rep(1,nrow(query)))
-  if(length(c(all.vars(fixed),all.vars(random)))>0){
-    z.query.lst <- c(z.query.lst,as.list(
-      query[,c(all.vars(fixed),all.vars(random)),drop=FALSE]))
-  }
-  
-  ## projection matrix
+  formula <- fit$.args$formula0
+  coords_name <- colnames(fit$.args$coords)
   mesh <- fit$.args$mesh
-  coords <- fit$.args$coords
-  A <- inla.spde.make.A(mesh, loc=coords)
-
-  ## Define SPDE data stacks -- observed
-  zcoord <- getVars(fit$.args$formula0)[1]
   spde <- fit$.args$spde
-  stk.z.obs <- inla.stack(tag="obs",
-                          data=list(y=obs[,zcoord]),
-                          A=list(A,1),
-                          effects=list(
-                            list(field=1:spde$n.spde),
-                            z.obs.lst
-                          )
-  )
+  terms_s <- fit$.args$sterms
   
-  pcoords <- as.matrix(query[,colnames(coords)])
-  Ap <- inla.spde.make.A(mesh, loc=pcoords)
-  stk.z.query <- inla.stack(tag="query",
-                            data=list(y=rep(NA,nrow(query))),
-                            A=list(Ap,1),
-                            effects=list(
-                              list(field=1:spde$n.spde),
-                              z.query.lst
-                            )
-  )
+  ## prepare sobjects jointly for observed
+  ## and predicted
   
+  ## make sure all variables are in query
+  v_ <- all.vars(fit$.args$sformula)
+  resp_na_ <- v_[which(!(v_ %in% names(data)))]
+  if(length(resp_na_)){
+    for(j in 1:length(resp_na_)){
+      data$dummy__ <- 0
+      names(data)[which(names(data)=="dummy__")] <- resp_na_[j]
+    }
+  }
+  ## prepare Z terms jointly
+  joint_ <- rbind(obs[,v_],data[,v_])
+  soutJ <- s2inla(fit$.args$sformula,joint_)
+  
+  ## get the observed and query z terms
+  idx.obs <- 1:nrow(obs)
+  idx.query <- nrow(obs)+1:nrow(data)
+  
+  ## prepare the lists
+  sout <- list(
+    Z=lapply(soutJ$Z,function(mat) mat[idx.obs,]),
+    X=as.list(soutJ$data[idx.obs,][terms_s]))
+  sout.query <- list(
+    Z=lapply(soutJ$Z,function(mat) mat[idx.query,]),
+    X=as.list(soutJ$data[idx.query,][terms_s]-nrow(obs)))
+  #sout$X <- as.list(sout$data[terms_s])
+  offset <- fit$.args$offset
+  ## prepare stack for the observed
+  stk.z.obs <- inla_spde_stack_helper(
+    fixed,random,formula,obs,mesh,spde,
+    coords_name[1],coords_name[2],sout,offset,isquery = F)
+  
+  ## prepare stack for query
+  #browser()
+  #data$dummyResponse__ <- 1
+  #sformula_ <- paste0("dummyResponse__~",as.character(fit$.args$sformula)[3])
+  #sout.query <- s2inla(formula(sformula_),data)
+  #sout.query$X <- as.list(sout.query$data[terms_s])
+  
+  stk.z.query <- inla_spde_stack_helper(
+    fixed,random,formula,data,mesh,spde,
+    xcoord = coords_name[1],ycoord = coords_name[2],
+    sout.query,offset,isquery = T
+  )
+  #browser()
   stk.z <- inla.stack(stk.z.obs,stk.z.query)
   
   ## reset the inla compute argument for prediction
@@ -95,7 +176,7 @@ inla_spde_stack <- function(fit,data){
   ## prepare data structure and arguments as a list
   internal__ <- list(
     formula = formula_,
-    data=inla.stack.data(stk.z),
+    data=inla_spde_adjustZ_helper(stk.z,sout),
     control.compute = compute_,
     control.predictor=list(A=inla.stack.A(stk.z),compute=TRUE))
   
@@ -153,7 +234,7 @@ setMethod("link","inla",function(fit,data,n=1000,type="confidence",E=NULL,Ntrial
                          control.predictor = predictor_)
     }
 
-    
+    #browser()
     ## set the E for Poisson
     E_ <- fit$.args$E
     if(!is.null(fit$.args$E)){
@@ -176,7 +257,8 @@ setMethod("link","inla",function(fit,data,n=1000,type="confidence",E=NULL,Ntrial
       control.family = fit$.args$control.family,
       control.inla = fit$.args$control.inla,
       control.fixed = fit$.args$control.fixed,
-      control.mode = fit$.args$control.mode,
+      control.mode = control.mode(theta=fit$mode$theta,restart=FALSE),
+#      fit$.args$control.mode,
       control.expert = fit$.args$control.expert,
       control.lincomb = fit$.args$control.lincomb,
       control.update = fit$.args$control.update,
@@ -205,7 +287,6 @@ setMethod("link","inla",function(fit,data,n=1000,type="confidence",E=NULL,Ntrial
     ## spde model
     pred.ii <- grep("APredictor",row.names(samples[[1]]$latent))
     if(!missing(data)){
-      ## CHECK ME
       ## new data, remove training data
       ntrain <- grep("APredictor",row.names(fit$summary.fitted.values))
       #ntrain <- nrow(fit$summary.fitted.values)
@@ -338,7 +419,7 @@ dev_Gaus <- function(){
   source("proc.formula.R")
   source("lme_inla_formula.R")
   source("sgam_2.R")
-  source("Z_link_inla_dev_3.R")
+  source("Z_link_inla_dev_5.R")
   summary(fit)
   mu <- link(fit,data=sim[1:10,])
   post <- link(fit,data = sim[1:10,],type="prediction")
@@ -368,7 +449,7 @@ dev_Binom <- function(){
   source("proc.formula.R")
   source("lme_inla_formula.R")
   source("sgam_2.R")
-  source("Z_link_inla_dev_3.R") 
+  source("Z_link_inla_dev_5.R") 
   
   mu <- link(fit,data=DeerEcervi[1:10,],Ntrials = 1:10)
   post <- link(fit,data=DeerEcervi[1:10,],type = "prediction",Ntrials = 1:10)
@@ -397,7 +478,7 @@ dev_Poisson <- function(){
   source("proc.formula.R")
   source("lme_inla_formula.R")
   source("sgam_2.R")
-  source("Z_link_inla_dev_3.R") 
+  source("Z_link_inla_dev_5.R") 
   mu <- link(fit,data=dat,E=1:9)
   post <- link(fit,data=dat,type = "prediction",E=1:9)
   plot(apply(mu,2,mean)/1:9,fit$summary.fitted.values$mean)
@@ -431,7 +512,7 @@ dev_NB <- function(){
   source("proc.formula.R")
   source("lme_inla_formula.R")
   source("sgam_2.R")
-  source("Z_link_inla_dev_3.R") 
+  source("Z_link_inla_dev_5.R") 
   
   
   mu <- link(fit,data=dat[1:10,],E=1:10)
@@ -449,29 +530,34 @@ dev_SPDE <- function(){
   source("sgam_2.R")
   source("nmiss_2.R")
   source("getVars.R")
-  source("spde_glm_1.R")
+  source("s2inla_2.R")
   load(file="Scratch/spde_glm_dev1.rdata")
+  source("spde_gam_1.R")
   
-  wds.geo$err <- seq(1,nrow(wds.geo))
-  wds.geo$X2 <- as.vector(scale(wds.geo$X))
-  wds.geo$Y2 <- as.vector(scale(wds.geo$Y))
-  ## poly(X,2) does not work because missing values not allowed
+  wds.geo$strata <- gl(3,510)[1:nrow(wds.geo)]
   dat <- wds.geo
-  fit <- spde.glm(TOT~X2+Y2+f(err),data=dat,mesh=mesh1,spde=spde1,
+  source("Z_link_inla_dev_5b.R")
+  wds.geo$X2 <- scale(wds.geo$X)
+  wds.geo$Y2 <- scale(wds.geo$Y)
+  mod <- spde.gam(TOT~strata+ns(X2,df=3)+ns(Y2,df=3),
+                  data=wds.geo,mesh=mesh1,spde=spde1,
                   xcoord="X",ycoord="Y",family="poisson",
                   E=AREA)
-  source("Z_link_inla_dev_3.R")
-  mu <- link(fit,n=99,E=wds.geo$AREA)
-  #mu <- link(fit,data=dat[1:10,],E=1:10)
-  post <- link(fit,n=99,type = "prediction",
-               E=wds.geo$AREA)
-  plot(apply(mu,2,mean)/wds.geo$AREA,
-       fit$summary.fitted.values$mean[1:ncol(mu)])
+  mod <- spde.gam(TOT~strata+s(X2),
+                  data=wds.geo,mesh=mesh1,spde=spde1,
+                  xcoord="X",ycoord="Y",family="poisson",
+                  E=AREA)
+  mu <- link(mod,n=99,data=wds.geo[1:10,],E=wds.geo$AREA[1:10])
+  post <- link(mod,n=99,data=wds.geo[1:10,],
+               type = "prediction",
+               E=wds.geo$AREA[1:10])
+  plot(apply(mu,2,mean)/wds.geo$AREA[1:10],
+       mod$summary.fitted.values$mean[1:ncol(mu)])
   abline(0,1)
   plot(apply(mu,2,mean),apply(post,2,mean))
   abline(0,1)
   plot(apply(mu,2,sd),apply(post,2,sd))
   abline(0,1)
-  table(post[,1])  
+  #table(post[,1])  
   
 }
