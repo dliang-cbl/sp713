@@ -20,7 +20,7 @@ sgam(formula,data,newdata=NULL,param=NULL,...)
 \value{
 fitted \code{inla} object
 }
-\description{
+\details{
 GAMM using R and Integrated Nested Laplace Approximation.
 }
 \author{Dong Liang}

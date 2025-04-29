@@ -19,7 +19,7 @@
 \value{
 None
 }
-\description{
+\details{
 Create a default plot of smooth terms in a fitted INLA model
 }
 \author{Dong Liang}

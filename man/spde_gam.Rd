@@ -29,7 +29,7 @@
 \value{
 fitted INLA object
 }
-\description{
+\details{
 geostatistical GAM with Stochastic Partial Differential Equations using R and Integrated Nested Laplace Approximation.
 
 This function replaces the \code{spde.glm} in earlier version of the package.

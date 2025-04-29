@@ -12,7 +12,7 @@ DIC(...)
 }
 \value{
 A data frame with the DIC from each model}
-\description{
+\details{
 Model comparison using Deviance Information Criterion.
 }
 \author{

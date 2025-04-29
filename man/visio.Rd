@@ -33,7 +33,7 @@ visio(
 }
 \value{
 A leaflet map}
-\description{
+\details{
 The simple feature should be in WGS 84 projection}
 \author{
 Dong Liang <dliang@umces.edu>
