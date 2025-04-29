@@ -288,7 +288,7 @@ spde.gam <- function(
     ## how to fill in these NA values with
     ## something reasonable if possible?
     apply(A_[,field_idx],2,sum)
-    ## TBContinued from here.
+    
     data_$TOT <- data_$y
     Z1 <- data_$Z1
     Z1 <- na.omit(Z1)
@@ -327,6 +327,12 @@ spde.gam <- function(
   
   ## return model
   mod1
+}
+spde.glm <- function(...) {
+  cat("Warning: 'spde.glm' has been superseded by 'spde.gam'. Please use 'spde.gam' instead.\n")
+  
+  # Call the new function with the provided arguments
+  spde.gam(...)
 }
 dev <- function(){
   ## categorical predictor as fixed effects
@@ -555,4 +561,25 @@ test_spde_gam_2 <- function(){
                   xcoord="X",ycoord="Y",family="poisson",
                   E=AREA)
   
+}
+test_spde_glm <- function(){
+  rm(list=ls())
+  library(INLA)
+  library(mgcv)
+  source("sgam_2.R")
+  source("nmiss_2.R")
+  source("getVars.R")
+  source("s2inla_2.R")
+  load(file="Scratch/spde_glm_dev1.rdata")
+  source("spde_gam_1b.R")
+  
+  wds.geo$strata <- gl(3,510)[1:nrow(wds.geo)]
+  wds.geo$x1 <- rnorm(nrow(wds.geo))
+  wds.geo$x2 <- rnorm(nrow(wds.geo))
+  ## original response, categorical
+  mod <- spde.glm(
+    TOT~strata+x1+x2,
+    data=wds.geo,mesh=mesh1,spde=spde1,
+    xcoord="X",ycoord="Y",family="poisson",
+    E=AREA)
 }

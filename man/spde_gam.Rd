@@ -1,8 +1,12 @@
 \name{spde.gam}
 \alias{spde.gam}
+\alias{spde.glm}
 \title{Stochastic Partial Differential Equations approach to geostatistical generalized additive model}
 \usage{
   spde.gam(
+    formula,data,mesh,spde,xcoord='x',ycoord='y',
+    ...)
+  spde.glm(
     formula,data,mesh,spde,xcoord='x',ycoord='y',
     ...)
 }
