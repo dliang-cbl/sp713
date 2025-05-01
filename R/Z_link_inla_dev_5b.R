@@ -54,7 +54,7 @@ inla_spde_stack <- function(fit,data){
     z.obs.lst <- list(b0=rep(1,nrow(obs)))
     
     if(length(all.vars(fixed))){
-      obs_fixed_X <- model.matrix(fixed,data=obs)[,-1]
+      obs_fixed_X <- model.matrix(fixed,data=obs)[,-1,drop=F]
       obs_fixed_X <- as.data.frame(obs_fixed_X)
       names(obs_fixed_X) <- make.names(names(obs_fixed_X))
       obs_fixed_X_list <- as.list(obs_fixed_X)

@@ -128,7 +128,7 @@ spde.gam <- function(
     z.obs.lst <- list(b0=rep(1,nrow(obs)))
     
     if(length(all.vars(fixed))){
-      obs_fixed_X <- model.matrix(fixed,data=obs)[,-1]
+      obs_fixed_X <- model.matrix(fixed,data=obs)[,-1,drop=F]
       obs_fixed_X <- as.data.frame(obs_fixed_X)
       names(obs_fixed_X) <- make.names(names(obs_fixed_X))
       obs_fixed_X_list <- as.list(obs_fixed_X)
@@ -165,7 +165,7 @@ spde.gam <- function(
     if(interceptonly){
       fixed.vars <- c("0+b0")
     }else{
-      obs_fixed_X <- model.matrix(fixed,data=obs)[,-1]
+      obs_fixed_X <- model.matrix(fixed,data=obs)[,-1,drop=F]
       obs_fixed_X <- as.data.frame(obs_fixed_X)
       names(obs_fixed_X) <- make.names(names(obs_fixed_X))
       obs_fixed_X_list <- as.list(obs_fixed_X)
@@ -411,11 +411,24 @@ test_spde_gam <- function(){
   source("getVars.R")
   source("s2inla_2.R")
   load(file="Scratch/spde_glm_dev1.rdata")
-  source("spde_gam_1.R")
+  source("spde_gam_1b.R")
   
   wds.geo$strata <- gl(3,510)[1:nrow(wds.geo)]
   wds.geo$x1 <- rnorm(nrow(wds.geo))
   wds.geo$x2 <- rnorm(nrow(wds.geo))
+  mod <- spde.gam(
+    TOT~x1,
+    data=wds.geo,mesh=mesh1,spde=spde1,
+    xcoord="X",ycoord="Y",family="poisson",
+    E=AREA)
+  
+  library(splines)
+  mod <- spde.gam(
+    TOT~ns(x1),
+    data=wds.geo,mesh=mesh1,spde=spde1,
+    xcoord="X",ycoord="Y",family="poisson",
+    E=AREA)
+  
   ## original response, categorical
   mod <- spde.gam(
     TOT~strata+s(x1),
