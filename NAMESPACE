@@ -15,6 +15,10 @@ export(spde.gam)
 export(spde.glm)
 export(Variog)
 export(resid)
+export(raster2nb)
+export(xy2cell)
+export(cell2xy)
+
 importFrom("graphics","abline","matplot","par","rug","dotchart", "hist", "lines", "mtext", "points")
 importFrom("stats","binomial", "coef", "dbinom", "dnbinom", "dnorm",
              "dpois", "dt", "glm", "poisson", "predict", "rbinom",
