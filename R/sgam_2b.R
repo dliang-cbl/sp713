@@ -71,21 +71,40 @@ sgam.combine <- function(formula,data,newdata){
   stopifnot(class(data)==class(newdata))
   vars_ <- getVars(formula)
   resp.var <- vars_[1]
-  newdata[[resp.var]] <- rep(NA,length(newdata[[1]])) ## set response as missing
   if(class(data)=="data.frame"){
+    newdata[[resp.var]] <- rep(NA,length(newdata[[1]])) ## set response as missing
     return(rbind(data[,vars_],newdata[,vars_]))
   }
   if(class(data)=="list"){
     data_ <- data[vars_]
-    newdata_ <- newdata[vars_]
+    newdata_ <- newdata[vars_[-1]]
+    # find number of new observations
+    if(is.null(dim(newdata_[[1]]))){
+      m <- length(newdata_[[1]])
+    }else{
+      m <- nrow(newdata_[[1]])
+    }
+    #newdata_ <- newdata[vars_]
     value_ <- vector("list",length(data_))
     names(value_) <- names(data_)
     for(i in 1:length(value_)){
-      if(is.null(dim(data_[[i]]))){
-        value_[[i]] <- c(data_[[i]],newdata_[[i]])
+      if(i>1){
+        ## combine the predictors
+        if(is.null(dim(data_[[i]]))){
+          stopifnot(is.null(dim(newdata_[[i-1]])))
+          value_[[i]] <- c(data_[[i]],newdata_[[i-1]])
+        }else{
+          value_[[i]] <- rbind(data_[[i]],newdata_[[i-1]])
+        }
       }else{
-        value_[[i]] <- rbind(data_[[i]],newdata_[[i]])
+        ## set response as missing
+        if(is.null(dim(data_[[i]]))){
+          value_[[i]] <- c(data_[[i]],rep(NA,m))
+        }else{
+          value_[[i]] <- rbind(data_[[i]],matrix(NA,m,ncol(data_[[i]])))
+        }
       }
+      
     }
     return(value_)
   }
