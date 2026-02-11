@@ -18,6 +18,7 @@ export(resid)
 export(raster2nb)
 export(xy2cell)
 export(cell2xy)
+export(extract.samples)
 
 importFrom("graphics","abline","matplot","par","rug","dotchart", "hist", "lines", "mtext", "points")
 importFrom("stats","binomial", "coef", "dbinom", "dnbinom", "dnorm",
