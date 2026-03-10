@@ -27,8 +27,8 @@ s2inla <- function(
 {
   ##browser()
   l.tt <- terms(formula)
-  l.ss <- grep("^s(.+)",attr(l.tt,"term.labels"))
-  l.ff <- grep("^f(.+)",attr(l.tt,"term.labels"))
+  l.ss <- grep("^s\\(.+\\)",attr(l.tt,"term.labels"))
+  l.ff <- grep("^f\\(.+\\)",attr(l.tt,"term.labels"))
   l.oo <- row.names(attr(l.tt,"factors"))[attr(l.tt,"offset")] ## offset terms
   l.terms.nos <- attr(l.tt,"term.labels")[-l.ss] ## identify non-smooth terms
   l.response <- getVars(formula)[1]              ## identify response variable
