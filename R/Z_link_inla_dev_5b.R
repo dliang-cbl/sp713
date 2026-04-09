@@ -352,6 +352,14 @@ setMethod("link","inla",function(fit,data,n=1000,type="confidence",E=NULL,Ntrial
       }
       post <- sapply(samples,sim_work)
     }
+    if(fam_=="lognormal"){
+      sim_work <- function(elmt){
+        mu <- elmt$latent[pred.ii]
+        sigma <- 1/sqrt(elmt$hyperpar["Precision for the lognormal observations"])
+        rlnorm(length(mu),meanlog=mu,sdlog=sigma)
+      }
+      post <- sapply(samples,sim_work)
+    }
     if(fam_=="binomial"){
       m_matrix <- linkinv_(lp_matrix)
       ## extract N trials
