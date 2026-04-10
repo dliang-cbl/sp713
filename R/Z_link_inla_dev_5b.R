@@ -309,6 +309,7 @@ setMethod("link","inla",function(fit,data,n=1000,type="confidence",E=NULL,Ntrial
                      gaussian=gaussian()$linkinv,
                      binomial=binomial()$linkinv,
                      nbinomial=poisson()$linkinv,
+                     lognormal=gaussian()$linkinv,
                      gaussian()$linkinv)
   #browser()
   # extract linear predictors
