@@ -294,13 +294,18 @@ setMethod("link","inla",function(fit,data,n=1000,type="confidence",E=NULL,Ntrial
     }
     
   }else{
-    pred.ii <- grep("Predictor",row.names(samples[[1]]$latent))
+    ## determine the latent predictor locations
+    ## first check for stacked data
+    pred.ii <- grep("^APredictor\\:[0-9]+",row.names(samples[[1]]$latent))
+    if(length(pred.ii)<1){
+      ## regular data 
+      pred.ii <- grep("^Predictor\\:[0-9]+",row.names(samples[[1]]$latent))
+    }
+    ntrain <- with(fit$.args,length(data[[all.vars(formula)[1]]]))
     if(!missing(data)){
       ## new data, remove training data
-      ntrain <- nrow(fit$summary.fitted.values)
       pred.ii <- pred.ii[-c(1:ntrain)]
-    }
-    
+    }    
   }
   
   ## define link function
@@ -320,7 +325,14 @@ setMethod("link","inla",function(fit,data,n=1000,type="confidence",E=NULL,Ntrial
   fam_ <- fit$.args$family
   if(missing(data)){
     ## for in-sample prediction, use the training data
-    data <- fit$.args$raw
+    ## extract data for standard inla call plus E and Ntrials
+    if(is.null(fit$.args$raw)){
+      data <- data.frame(y=with(fit$.args,data[[all.vars(formula)[1]]]))
+    }else{
+      data <- fit$.args$raw
+    }
+    E <- fit$.args$E
+    Ntrials <- fit$.args$Ntrials
   }
   if(type=="confidence"){
     extract <- function(elmt){
