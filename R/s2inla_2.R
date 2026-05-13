@@ -31,13 +31,16 @@ s2inla <- function(
   l.ff <- grep("^f\\(.+\\)",attr(l.tt,"term.labels"))
   l.oo <- row.names(attr(l.tt,"factors"))[attr(l.tt,"offset")] ## offset terms
   l.terms.nos <- attr(l.tt,"term.labels")[-l.ss] ## identify non-smooth terms
+  l.terms.s <- attr(l.tt,"term.labels")[l.ss] ## identify only smooth terms
   l.response <- getVars(formula)[1]              ## identify response variable
+  l.intercept <- grep("^intercept$",attr(l.tt,"term.labels")) ## identify intercept term
   
   ## remove the f portion of the formula to be compatible with jagam
+  ## also remove the intercept portion of the formula
   l.formula <- formula
-  if(length(l.ff)>0){
+  if(length(c(l.intercept,l.ff))>0){
     l.terms.nof <- c(
-      getVars(formula)[-1][-c(l.ff,l.ss)],
+      getVars(formula)[-1][-c(l.intercept,l.ff,l.ss)],
       attr(l.tt,"term.labels")[l.ss]) ## extract all no f terms
     if(length(l.terms.nof)>0){
       l.formula <- reformulate(l.terms.nof,response=l.response)  
@@ -63,19 +66,26 @@ s2inla <- function(
   
   ## remove missing values
   ## allow NA in responses for predictions
-  data <- nmiss(formula,data,forceResponse = T) 
+  s.formula <- reformulate(l.terms.s,response=l.response)
+  data_ <- nmiss(l.formula,data,forceResponse = T) 
+
+  ## derive offset
+  if(length(l.oo)==0){
+    offset <- rep(0,length(data_[[l.response]]))
+  }else{
+    l.oo.formula <- reformulate(l.oo,response = l.response)
+    l.oo.data <- data[all.vars(l.oo.formula)]
+    offset <- model.offset(model.frame(l.oo.formula,data=l.oo.data))
+  }
+  
   jf <- tempfile()
-  jd <- jagam(l.formula,data=data,file=jf,
+  jd <- jagam(s.formula,data=data_,file=jf,
               diagonalize = TRUE,na.action=na.pass,family=family)
   
   ## creat fixed design matrix
   nms <- names(jd$pregam$cmX) ## if this name is not null, it is a design matrix
   Design <- jd$pregam$X[,nchar(nms)>0,drop=F] ## now without f terms
   #browser()
-  offset <- model.offset(model.frame(jd$pregam$terms,data))
-  if(is.null(offset)){
-    offset <- rep(0,nrow(Design))
-  }
   
   ## create list for random design matrix, formula and simply IDs
   X <- vector("list",length(jd$pregam$smooth))
@@ -142,8 +152,10 @@ s2inla <- function(
   }
   ## process formula for INLA
   
+  ## append intercepts
+  l.ii <- ifelse(attr(l.tt,"intercept")==0,"0",NULL)
   r.formula <- reformulate(
-    c(do.call(c,fout),l.terms.nos,l.oo),
+    c(l.ii,do.call(c,fout),l.terms.nos,l.oo),
     response=l.response)
   
   ## return only the first component
@@ -160,23 +172,3 @@ s2inla <- function(
   l.r
 }
 
-debug_ <- function(){
-  rm(list=ls())
-  library(mgcv)
-  source("s2inla_2.R")
-  source("getVars.R")
-  source("nmiss_2.R")
-  sim <- gamSim()
-  dum <- s2inla(y~s(x1),data=sim,verbose = T)
-  sim$y[1] <- NA
-  dum <- s2inla(y~s(x1),data=sim,verbose = T)
-  sim$x1[2] <- NA
-  dum <- s2inla(y~s(x1),data=sim,verbose = T)
-  str(dum$y)
-  str(dum$Z[[1]])
-  sim2 <- list(y=sim$y,x1=sim$x1,Z=matrix(rnorm(1200),ncol=3))
-  dum <- s2inla(y~s(x1)+Z,data=sim2,verbose = T)
-  str(dum$data)
-  sim2$Z[cbind(c(2,4,7),1)] <- NA
-  dum <- s2inla(y~s(x1)+Z,data=sim2,verbose = T)
-}
