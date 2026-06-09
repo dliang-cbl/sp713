@@ -263,7 +263,8 @@ setMethod("link","inla",function(fit,data,n=1000,type="confidence",E=NULL,Ntrial
       control.lincomb = fit$.args$control.lincomb,
       control.update = fit$.args$control.update,
       control.lp.scale = fit$.args$control.lp.scale,
-      control.pardiso = fit$.args$control.pardiso))
+      control.pardiso = fit$.args$control.pardiso,
+      num.threads = fit$.args$num.threads))
     
     if(!is.null(E_)){
       args_$E <- E_
