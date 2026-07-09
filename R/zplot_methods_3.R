@@ -4,6 +4,11 @@ plot.inla <-  function(
   select=NULL, ## single term to be selected)
   ... # arguments passed to lower level plotting function
 ){
+  if(F){
+    x = r2
+    pages=0
+    select=NULL
+  }
   #browser()
   args__ <- as.list(match.call())
   
@@ -20,21 +25,15 @@ plot.inla <-  function(
   # }else{
   #   op <- par(mfrow=c(1,1))
   # }
-  ymin <- NA
-  ymax <- NA
-  for(i in 1:length(sterms)){
-    l.fit <- as.matrix(x$summary.random[[sterms[i]]][
-      1:nrow(x$.args$raw),
-      4:6])
-    ymin <- min(ymin,c(l.fit),na.rm=T)
-    ymax <- max(ymax,c(l.fit),na.rm=T)
-  }
+  l.fit <- as.matrix(x$summary.lincomb.derived[,4:6])
+  ymin <- min(c(l.fit),na.rm=T)
+  ymax <- max(c(l.fit),na.rm=T)
   #cat(ymin,ymax,"\n")
+  smooth_random <- split(x$summary.lincomb.derived[,4:6],
+                         x$.args$lc_sidx)
   for(i in 1:length(sterms)){
     l.x <- x$.args$raw[,sterms[i]]
-    l.fit <- x$summary.random[[sterms[i]]][
-      1:nrow(x$.args$raw),
-      4:6]
+    l.fit <- smooth_random[[sterms[i]]]
     if("xlab" %in% names(args__)){
       xlab <- args__$xlab
     }else{

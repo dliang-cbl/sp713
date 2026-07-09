@@ -1,14 +1,14 @@
 #' generalized additive model 
 #' 
 #' GLM using R and Integrated Nested Laplace Approximation. 
-#' Dong Liang, UMCES/CBL 2024
+#' Dong Liang, UMCES/CBL 2026
 #' @param formula  lme type formula object with additive terms
 #' @param data data frame to evaluate the model
 #' @param newdata data frame to form prediction
 #' @param family family for response variable
 #' @param E offset term
 #' @param Ntrials number of trials INLA term
-#' @param param hyper-parameter for random effects
+#' @param param hyper-parameter for truncated Normal prior for smooth random effects
 #' @param weights weights INLA term
 #' @param verbose whether to show detailed results
 #' @return fitted INLA object
@@ -39,7 +39,7 @@ sgam.translate <- function(formula,data,param){
   }
   
   #browser()
-  sout <- s2inla(for0,data=df0)
+  sout <- s2inla(for0,data=df0,U=param)
   #for(i in 1:length(sout$Z)){
   #  assign(names(sout$Z)[i],sout$Z[[i]])
   #}
@@ -147,7 +147,7 @@ sgam.config.compute <- function(args){
   
 }
 sgam <- function(
-  formula,data,newdata=NULL,param=NULL,...)
+  formula,data,newdata=NULL,param=c(1,1),...)
 {
   ## combine data
   if(!is.null(newdata)){
@@ -181,7 +181,8 @@ sgam <- function(
   result0 <- do.call(
     "inla",
     c(list(formula=internal__$value$formula,
-         data=internal__$data),
+         data=internal__$data,
+         lincomb = internal__$value$LC),
          args__))
   
   # ## deal with E and NTrials
@@ -210,6 +211,7 @@ sgam <- function(
 
   #result0$DIC <- with(result0$dic,c(Dbar=mean.deviance,pD=p.eff,DIC=dic))
   result0$.args$sterms <- internal__$value$sterms
+  result0$.args$lc_sidx <- internal__$value$LCname
   result0$.args$raw <- internal__$value$raw
   result0$.args$formula0 <- formula
   result0$.args$param <- param

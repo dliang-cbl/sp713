@@ -12,7 +12,6 @@
 ##    :                  the second entry is for the smooth with rank 1
 ##    : NOTE: these numbers appear work with single smooth, but the linear
 ##    combination part is tricky with z models
-## rankone: logical, whether include null smooth or not.
 ## family : glm family to process
 ## zmat   : character string for zmatrix list name
 ## verbose : whether to output details
@@ -22,9 +21,23 @@
 ##        sterms: smooth terms
 ##        zmat  : input for zmat name
 s2inla <- function(
-  formula,data,U=c(0.00001,10),rankone=FALSE,
+  formula,data,U=c(1,1),
   family=gaussian,zmat="Z",verbose=FALSE)
 {
+  if(FALSE){
+    rm(list=ls())
+    library(mgcv)
+    source("../R/getVars.R")
+    source("../R/nmiss_2.R")
+    source("../R/proc.formula.R")
+    source("../R/lme_inla_formula.R")
+    d <- gamSim(n=100)
+
+    formula = y~s(x0)+s(x1)+x2
+    data=d
+    U=c(1,1)
+    family=gaussian;zmat="Z";verbose=FALSE
+  }
   ##browser()
   l.tt <- terms(formula)
   l.ss <- grep("^s\\(.+\\)",attr(l.tt,"term.labels"))
@@ -94,6 +107,9 @@ s2inla <- function(
   varnames <- sapply(jd$pregam$smooth,function(elmt) elmt$term)
   ones <- vector("list",length(X))
   
+  LC <- vector("list",length(X))
+  LC_name <- vector("list",length(X))
+  
   for(i in 1:length(jd$pregam$smooth)){ ## loop thru smooth term
     ## create id matrices
     tmp <- matrix(1:nrow(Design),nrow(Design),length(jd$pregam$smooth[[i]]$rank))
@@ -102,8 +118,18 @@ s2inla <- function(
     #colnames(tmp) <- c(varnames[i],paste(varnames[i],2:length(jd$pregam$smooth[[i]]$rank),sep=""))
     ones[[i]] <- as.data.frame(tmp)
     
+    ## create linear combination list
+    tmp_ <- list(a__=diag(nrow(ones[[i]])),
+                 b__=diag(nrow(ones[[i]])))
+    names(tmp_) <- names(ones[[i]])
+    #tmp2 <- inla.make.lincombs(x0=diag(100),x02=diag(100))
+    LC[[i]] <- do.call(inla.make.lincombs,tmp_) 
+    names(LC[[i]]) <- paste0(varnames[i],"_",1:length(LC[[i]]))
+    LC_name[[i]] <- rep(varnames[i],nrow(ones[[i]]))
+    
     ## create design matrices
     X[[i]] <- vector("list",length(jd$pregam$smooth[[i]]$rank))
+
     start <- jd$pregam$smooth[[i]]$first.para
     ff <- rep("",length(jd$pregam$smooth[[i]]$rank))
     for(j in 1:length(jd$pregam$smooth[[i]]$rank)){
@@ -119,19 +145,17 @@ s2inla <- function(
       }                  ## end
       X[[i]][[j]] <- jd$jags.data$X[,idx,drop=FALSE]
       ## INLA formula
-      tmpfor <- paste("f(",colnames(tmp)[j],',model="z",',"Z=",zmat,i,",",
+      tmpfor <- paste("f(",colnames(tmp)[j],',model="z",',"Z=",zmat,i,"_",j,",",
                       'hyper=list(prec=list(prior="logtnormal",param=c(0,',
                       l.U,'))))',
                       sep="")
       if(j==1){
+        ## range space
         ff[j] <- tmpfor
       }
       else{
-        if(rankone){
-          ## this would be an issue 
-          ## with low rank smoothing df=3 e.g.
-          ff[j] <- tmpfor
-        }
+        ## null space
+        ff[j] <- tmpfor
       }
       start <- max(idx)+1
     }
@@ -153,20 +177,38 @@ s2inla <- function(
   ## process formula for INLA
   
   ## append intercepts
-  l.ii <- ifelse(attr(l.tt,"intercept")==0,"0",NULL)
-  r.formula <- reformulate(
-    c(l.ii,do.call(c,fout),l.terms.nos,l.oo),
-    response=l.response)
+  if(attr(l.tt,"intercept")==0){
+    r.formula <- reformulate(
+      c("0",do.call(c,fout),l.terms.nos,l.oo),
+      response=l.response)
+    
+  }else{
+    r.formula <- reformulate(
+      c(do.call(c,fout),l.terms.nos,l.oo),
+      response=l.response)
+  }
+  #l.ii <- ifelse(attr(l.tt,"intercept")==0,"0",NULL)
+  #r.formula <- reformulate(
+  #  c(l.ii,do.call(c,fout),l.terms.nos,l.oo),
+  #  response=l.response)
   
-  ## return only the first component
-  X <- lapply(X,function(elmt) elmt[[1]])
-  names(X) <- paste0(zmat,seq(1,length(X)))
+  ## return both range and null components to be consistent with jagam
+  for(i in 1:length(X)){
+    names(X[[i]]) <- paste0(zmat,i,"_",seq(1,length(X[[i]])))
+  }
+  Xout <- do.call(c,X)
+  #X <- lapply(X,function(elmt) elmt[[1]])
+  #names(X) <- paste0(zmat,seq(1,length(X)))
   
-  l.r <- list(y=jd$pregam$y,Design=Design,X=X,
+  LCout <- do.call(c,LC)
+  LCnameout <- do.call(c,LC_name)
+  
+  l.r <- list(y=jd$pregam$y,Design=Design,X=Xout,
+              LC=LCout,LCname=LCnameout,
               formula=r.formula,data=r.data,
               raw=data,
               pregam=jd$pregam,offset=offset,
-              sterms=getVars(formula)[-1][l.ss],zmat=zmat)
+              sterms=varnames,zmat=zmat)
   names(l.r)[3] <- zmat
   
   l.r
